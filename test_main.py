@@ -1,14 +1,18 @@
-import unittest
+import pytest
 from fastapi.testclient import TestClient
+from httpx import AsyncClient
 from main import app
 
-client = TestClient(app)
+@pytest.mark.asyncio
+async def test_solve_problem():
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        response = await ac.post("/solve", json={"prompt": "how much is 1+1"})
 
-def test_solve_problem():
-    response = client.post("/solve", json={"prompt": "Test prompt"})
-    assert response.status_code == 200
-    assert "conversation" in response.json()
-    assert "solution" in response.json()
+        assert response.status_code == 200
+        content = response.text.splitlines()
+
+        assert "Agent1:" in content[0]
+        assert "Solution verified, stopping conversation." in content[-1]
 
 if __name__ == '__main__':
-    unittest.main()
+    pytest.main()
