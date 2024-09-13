@@ -1,42 +1,100 @@
+/* File: App.css */
+/* Path: C:/Users/Asael/PycharmProjects/multi_agent_llm_platform/multiagentapp/src/App.css */
+
+/* CSS Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Ensure the app fills the entire viewport */
+body, html, #root {
+  height: 100%;
+  margin: 0;
+  background-color: #1e1e1e; /* Dark background color */
+}
+
+/* App container */
 .App {
-  text-align: center;
-  padding: 20px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.conversation-container {
+/* App-header styling */
+.App-header {
+  width: 100%;
   max-width: 800px;
-  margin: 0 auto;
-  text-align: left;
-  border: 1px solid #ccc;
-  padding: 10px;
-  height: 400px;
-  overflow-y: auto;
+  padding: 20px;
+  text-align: center;
 }
 
-.message {
-  margin-bottom: 10px;
-  padding: 5px;
-  border-radius: 5px;
+/* Headline styling */
+h1 {
+  color: #ffffff;
+  margin-bottom: 40px;
 }
 
-.user {
-  background-color: #e6f3ff;
-}
-
-.agent {
-  background-color: #f0f0f0;
-}
-
+/* Prompt input container */
 .prompt-input-container {
-  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  width: 100%;
 }
 
+/* Input field and submit button wrapper */
+.prompt-input-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 600px;
+}
+
+/* Input field styling */
 .prompt-input {
   width: 70%;
-  padding: 5px;
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #555;
+  border-radius: 5px;
+  background-color: #2e2e2e;
+  color: #ffffff;
 }
 
+/* Submit button styling */
 .submit-button {
   margin-left: 10px;
-  padding: 5px 10px;
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: #007bff;
+  border: none;
+  border-radius: 5px;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.submit-button:hover {
+  background-color: #0056b3;
+}
+
+.submit-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+/* Conversation container */
+.conversation-container {
+  width: 100%;
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 10px;
+  height: 500px;
+  overflow-y: auto;
+  background-color: #2e2e2e; /* Dark background */
+  border-radius: 8px;
+  border: 1px solid #444;
 }

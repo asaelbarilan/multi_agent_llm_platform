@@ -1,0 +1,97 @@
+/* File: Conversation.css */
+/* Path: C:/Users/Asael/PycharmProjects/multi_agent_llm_platform/multiagentapp/src/Conversation.css */
+
+/* Container styling */
+.conversation-container {
+  width: 100%;
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 10px;
+  height: 500px;
+  overflow-y: auto;
+  background-color: #2e2e2e; /* Dark background */
+  border-radius: 8px;
+  border: 1px solid #444;
+}
+
+/* Message styling */
+.message {
+  display: flex;
+  margin-bottom: 15px;
+}
+
+.agent {
+  justify-content: flex-start;
+}
+
+.user,
+.system {
+  justify-content: flex-end;
+}
+
+.message-content {
+  max-width: 70%;
+  padding: 10px 15px;
+  border-radius: 15px;
+  font-size: 16px;
+  line-height: 1.5;
+  position: relative;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.agent .message-content {
+  background-color: #3a3a3a;
+  color: #ffffff;
+  border: 1px solid #555;
+}
+
+.user .message-content,
+.system .message-content {
+  background-color: #4a4a4a;
+  color: #ffffff;
+}
+
+/* Code block styling */
+.code-block {
+  background-color: #1e1e1e;
+  color: #dcdcdc;
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 5px;
+  font-family: 'Courier New', Courier, monospace;
+  overflow-x: auto;
+}
+
+.code-block code {
+  white-space: pre-wrap;
+}
+
+/* Agent name styling */
+.agent-name {
+  font-weight: bold;
+  margin-bottom: 5px;
+  color: #61dafb; /* Bright color for agent names */
+}
+
+/* Chat bubble arrows */
+.agent .message-content::before {
+  content: '';
+  position: absolute;
+  top: 15px;
+  left: -10px;
+  border-width: 10px;
+  border-style: solid;
+  border-color: transparent #3a3a3a transparent transparent;
+}
+
+.user .message-content::before,
+.system .message-content::before {
+  content: '';
+  position: absolute;
+  top: 15px;
+  right: -10px;
+  border-width: 10px;
+  border-style: solid;
+  border-color: transparent transparent transparent #4a4a4a;
+}

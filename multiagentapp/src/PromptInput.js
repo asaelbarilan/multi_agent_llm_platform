@@ -1,8 +1,12 @@
+// File: PromptInput.js
+// Path: C:/Users/Asael/PycharmProjects/multi_agent_llm_platform/multiagentapp/src/PromptInput.js
+
 import React, { useState } from 'react';
 
 function PromptInput({ onNewMessage }) {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
+  const [eventSource, setEventSource] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -10,16 +14,22 @@ function PromptInput({ onNewMessage }) {
 
     setLoading(true);
 
-    // Use encodeURIComponent to safely include the prompt in the URL
-    const eventSource = new EventSource(`http://localhost:8000/solve?prompt=${encodeURIComponent(prompt)}`);
+    // Close any existing EventSource to prevent multiple connections
+    if (eventSource) {
+      eventSource.close();
+    }
 
-    // Event handler for when the connection is opened
-    eventSource.onopen = function () {
+    const newEventSource = new EventSource(
+      `http://localhost:8000/solve?prompt=${encodeURIComponent(prompt)}`
+    );
+
+    setEventSource(newEventSource);
+
+    newEventSource.onopen = function () {
       console.log('Connection to server opened.');
     };
 
-    // Capture messages as they stream in
-    eventSource.onmessage = function (event) {
+    newEventSource.onmessage = function (event) {
       console.log('Message received from backend:', event.data);
       onNewMessage(event.data);
 
@@ -29,15 +39,14 @@ function PromptInput({ onNewMessage }) {
         event.data.includes('Conversation ended without a verified solution.') ||
         event.data.includes('Max iterations reached, stopping conversation.')
       ) {
-        eventSource.close();
+        newEventSource.close();
         setLoading(false);
       }
     };
 
-    // Handle errors
-    eventSource.onerror = function (err) {
+    newEventSource.onerror = function (err) {
       console.error('EventSource failed:', err);
-      eventSource.close();
+      newEventSource.close();
       setLoading(false);
     };
 
@@ -46,17 +55,19 @@ function PromptInput({ onNewMessage }) {
 
   return (
     <form onSubmit={handleSubmit} className="prompt-input-container">
-      <input
-        type="text"
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        className="prompt-input"
-        placeholder="Enter your prompt here"
-        disabled={loading}
-      />
-      <button type="submit" className="submit-button" disabled={loading}>
-        {loading ? 'Processing...' : 'Submit'}
-      </button>
+      <div className="prompt-input-wrapper">
+        <input
+          type="text"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          className="prompt-input"
+          placeholder="Enter your prompt here"
+          disabled={loading}
+        />
+        <button type="submit" className="submit-button" disabled={loading}>
+          {loading ? 'Processing...' : 'Submit'}
+        </button>
+      </div>
     </form>
   );
 }

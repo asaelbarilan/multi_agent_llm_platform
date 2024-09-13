@@ -1,6 +1,10 @@
+// File: App.js
+// Path: C:/Users/Asael/PycharmProjects/multi_agent_llm_platform/multiagentapp/src/App.js
+
 import React, { useState } from 'react';
 import PromptInput from './PromptInput';
 import Conversation from './Conversation';
+import './App.css'; // Ensure App.css is imported
 
 function App() {
   // Maintain a state to track the conversation messages
@@ -37,8 +41,8 @@ function App() {
       <header className="App-header">
         <h1>Multi-Agent LLM Platform</h1>
         <PromptInput onNewMessage={handleNewMessage} /> {/* Pass the function to capture new messages */}
-        <Conversation messages={messages} /> {/* Display the conversation */}
       </header>
+      <Conversation messages={messages} /> {/* Display the conversation outside the header */}
     </div>
   );
 }
