@@ -1,38 +1,100 @@
+/* File: App.css */
+/* Path: C:/Users/Asael/PycharmProjects/multi_agent_llm_platform/multiagentapp/src/App.css */
+
+/* CSS Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Ensure the app fills the entire viewport */
+body, html, #root {
+  height: 100%;
+  margin: 0;
+  background-color: #1e1e1e; /* Dark background color */
+}
+
+/* App container */
 .App {
-  text-align: center;
-}
-
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+/* App-header styling */
+.App-header {
+  width: 100%;
+  max-width: 800px;
+  padding: 20px;
+  text-align: center;
+}
+
+/* Headline styling */
+h1 {
+  color: #ffffff;
+  margin-bottom: 40px;
+}
+
+/* Prompt input container */
+.prompt-input-container {
+  display: flex;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  margin-bottom: 20px;
+  width: 100%;
 }
 
-.App-link {
-  color: #61dafb;
+/* Input field and submit button wrapper */
+.prompt-input-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 600px;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* Input field styling */
+.prompt-input {
+  width: 70%;
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #555;
+  border-radius: 5px;
+  background-color: #2e2e2e;
+  color: #ffffff;
+}
+
+/* Submit button styling */
+.submit-button {
+  margin-left: 10px;
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: #007bff;
+  border: none;
+  border-radius: 5px;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.submit-button:hover {
+  background-color: #0056b3;
+}
+
+.submit-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+/* Conversation container */
+.conversation-container {
+  width: 100%;
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 10px;
+  height: 500px;
+  overflow-y: auto;
+  background-color: #2e2e2e; /* Dark background */
+  border-radius: 8px;
+  border: 1px solid #444;
 }

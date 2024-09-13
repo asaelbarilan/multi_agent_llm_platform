@@ -1,53 +1,75 @@
+// File: PromptInput.js
+// Path: C:/Users/Asael/PycharmProjects/multi_agent_llm_platform/multiagentapp/src/PromptInput.js
+
 import React, { useState } from 'react';
 
-function PromptInput() {
-    const [prompt, setPrompt] = useState('');
-    const [conversation, setConversation] = useState([]);
-    const [error, setError] = useState(null);
+function PromptInput({ onNewMessage }) {
+  const [prompt, setPrompt] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [eventSource, setEventSource] = useState(null);
 
-    const handleSubmit = async () => {
-        try {
-            const response = await fetch('http://localhost:8000/solve', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ prompt }),
-            });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (prompt.trim() === '') return;
 
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
+    setLoading(true);
 
-            const data = await response.json();
-            setConversation(data.conversation);  // Update this line
-            setError(null);
-        } catch (error) {
-            setError('Failed to fetch data from the server');
-            console.error('There was an error!', error);
-        }
+    // Close any existing EventSource to prevent multiple connections
+    if (eventSource) {
+      eventSource.close();
+    }
+
+    const newEventSource = new EventSource(
+      `http://localhost:8000/solve?prompt=${encodeURIComponent(prompt)}`
+    );
+
+    setEventSource(newEventSource);
+
+    newEventSource.onopen = function () {
+      console.log('Connection to server opened.');
     };
 
-    return (
-        <div>
-            <input
-                type='text'
-                value={prompt}
-                onChange={e => setPrompt(e.target.value)}
-                placeholder="Enter your prompt here"
-            />
-            <button onClick={handleSubmit}>Submit</button>
-            {error && <p style={{ color: 'red' }}>{error}</p>}
-            <div>
-                <h3>Conversation between Agents:</h3>
-                <ul>
-                    {conversation.map((msg, index) => (
-                        <li key={index}>{msg}</li>
-                    ))}
-                </ul>
-            </div>
-        </div>
-    );
+    newEventSource.onmessage = function (event) {
+      console.log('Message received from backend:', event.data);
+      onNewMessage(event.data);
+
+      // Check for completion messages to close the EventSource
+      if (
+        event.data.includes('Solution verified, stopping conversation.') ||
+        event.data.includes('Conversation ended without a verified solution.') ||
+        event.data.includes('Max iterations reached, stopping conversation.')
+      ) {
+        newEventSource.close();
+        setLoading(false);
+      }
+    };
+
+    newEventSource.onerror = function (err) {
+      console.error('EventSource failed:', err);
+      newEventSource.close();
+      setLoading(false);
+    };
+
+    setPrompt(''); // Clear input field after submission
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="prompt-input-container">
+      <div className="prompt-input-wrapper">
+        <input
+          type="text"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          className="prompt-input"
+          placeholder="Enter your prompt here"
+          disabled={loading}
+        />
+        <button type="submit" className="submit-button" disabled={loading}>
+          {loading ? 'Processing...' : 'Submit'}
+        </button>
+      </div>
+    </form>
+  );
 }
 
 export default PromptInput;
