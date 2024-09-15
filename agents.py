@@ -58,8 +58,7 @@ class Environment:
         iteration_count = 0
         max_iterations = 5  # Adjust as needed
 
-        # Create a unique folder for this conversation
-        folder_name = create_unique_folder(self.problem_description)
+
 
         while not self.solved and iteration_count < max_iterations:
             iteration_count += 1
@@ -76,13 +75,15 @@ As the Solver, please provide the code solution to the problem.
 
 **Important Instructions:**
 
+- Use Chain-of-Thought (CoT) reasoning to understand and solve the problem.
+- If you encounter an error or issue, attempt to solve it. If it doesn't work, try alternative methods.
+- Ensure you fully understand the problem by testing your solutions. If the problem persists after a solution attempt, it indicates a misunderstanding.
 - Provide an application name in the format `# Application Name: your_app_name`.
-- Use this name consistently in your code and file structures if applicable.
+- Use this name consistently in your code and file structures.
 - Provide each code file separately.
 - For each file, start with exactly `# File: path/to/filename.ext` or `**File: path/to/filename.ext**` (without any additional text).
 - Follow the filename with the code in a code block.
 - Include all necessary files, including JS files, CSS files, templates, etc.
-- Ensure that the `requirements.txt` file includes both `flask==2.0.3` and `werkzeug==2.0.3` to avoid compatibility issues.
 - Do not include any additional text, explanations, or instructions.
 - **Do not provide any text outside of the specified format.**
 
@@ -91,17 +92,57 @@ As the Solver, please provide the code solution to the problem.
 # Application Name: simple_calculator_app
 
 # File: app.py
-{triple_backtick}python
-# Your code here
+{triple_backtick}
+from flask import Flask, render_template, request
+
+app = Flask(__name__)
+
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    if request.method == 'POST':
+        num1 = float(request.form['num1'])
+        num2 = float(request.form['num2'])
+        result = num1 + num2
+        return render_template('result.html', result=result)
+    return render_template('index.html')
+
+if __name__ == '__main__':
+    app.run(debug=True)
 {triple_backtick}
 
 # File: templates/index.html
-{triple_backtick}html
-<!-- Your HTML code here -->
+{triple_backtick}
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Simple Calculator</title>
+</head>
+<body>
+  <h1>Simple Calculator</h1>
+  <form action="/" method="post">
+    Number 1: <input type="number" name="num1"><br>
+    Number 2: <input type="number" name="num2"><br>
+    <input type="submit" value="Calculate">
+  </form>
+</body>
+</html>
+{triple_backtick}
+
+# File: templates/result.html
+{triple_backtick}
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Calculator Result</title>
+</head>
+<body>
+  <h1>Result: {{ result }}</h1>
+</body>
+</html>
 {triple_backtick}
 
 # File: requirements.txt
-{triple_backtick}text
+{triple_backtick}
 flask==2.0.3
 werkzeug==2.0.3
 {triple_backtick}
@@ -115,6 +156,10 @@ Please provide only the application name and code files in this exact format.
 
             # Save the generated code and get the app name
             files, app_name = parse_files_from_response(response1)
+
+            # Create a unique folder for this conversation
+            folder_name = create_unique_folder(app_name)
+
             if app_name:
                 self.app_name = app_name  # Store the app name
             else:
@@ -153,7 +198,7 @@ Please provide your response in the following format:
             print(f"{agent2.name} response:\n{response2}")
             self.conversation.append(f"{agent2.name}: {response2}")
 
-            # Check if the Reviewer agrees that the problem is solved
+            # Check if the Reviewer agrees that the problem is solved and no execution errors
             if self.check_if_solved(response2) and "Errors:" not in execution_feedback:
                 print("Both agents agree that the problem is solved.")
                 self.solved = True
@@ -256,64 +301,72 @@ CMD ["python", "{code_filename}"]
             return True
         return False
 
+def extract_application_name(my_string):
+    """
+    Extracts the application name from a given string in various formats.
+
+    Args:
+        my_string (str): The input string containing the application name.
+
+    Returns:
+        str or None: The extracted application name if found, else None.
+    """
+    # Updated regex pattern to handle different formats
+    pattern = r'^(?:\#|\*\*)Application Name:\**\s*([A-Za-z0-9_]+)'
+
+    # Use re.MULTILINE to handle strings with multiple lines
+    match = re.search(pattern, my_string, re.MULTILINE)
+    if match:
+        return match.group(1)
+    else:
+        return None
+
 def parse_files_from_response(response):
     files = {}
-    app_name = None  # Default name is None
+    app_name = extract_application_name(response)  # Use the updated extraction function
 
-    # Extract application name if provided in '# Application Name: name' or '**Application Name:** name'
-    app_name_match = re.search(r'# Application Name:\s*(\S+)', response)
-    if app_name_match:
-        app_name = app_name_match.group(1).strip()
-    else:
-        app_name_match = re.search(r'\*\*Application Name:\s*(\S+)\*\*', response)
-        if app_name_match:
-            app_name = app_name_match.group(1).strip()
+    # Define forbidden characters excluding '/'
+    forbidden_chars = r'<>:"\\|?*'
 
-    # Pattern to match the expected file format with '# File: filename'
-    pattern1 = r'# File: (.*?)\n```(?:.*?)\n(.*?)```'
+    # Patterns to match the expected file format with '# File: filename' or '**File: filename**'
+    pattern1 = r'# File:\s*(.*?)\s*\n```(?:\w+)?\n([\s\S]*?)\n```'
+    pattern2 = r'\*\*File:\s*(.*?)\*\*\n```(?:\w+)?\n([\s\S]*?)\n```'
+
+    # Find all matches for pattern1
     matches1 = re.finditer(pattern1, response, re.DOTALL)
-
     for match in matches1:
         file_path = match.group(1).strip()
-        code = match.group(2)
+        code = match.group(2).strip()
 
-        # Sanitize the file path
-        file_path = file_path.replace('\n', '').replace('\r', '').strip()
-
-        # Validate the file path (allow forward slashes)
-        if any(c in file_path for c in r'<>:"\\|?*'):
+        # Sanitize the file path (allow forward slashes)
+        if any(c in file_path for c in forbidden_chars):
             print(f"Invalid characters found in file path: {file_path}. Skipping this file.")
             continue
 
         files[file_path] = code
 
-    # If no files found, try to match filenames in bold '**File: filename**'
-    if not files:
-        pattern2 = r'\*\*File:\s*(.*?)\*\*\n```(?:.*?)\n(.*?)```'
-        matches2 = re.finditer(pattern2, response, re.DOTALL)
+    # Find all matches for pattern2
+    matches2 = re.finditer(pattern2, response, re.DOTALL)
+    for match in matches2:
+        file_path = match.group(1).strip()
+        code = match.group(2).strip()
 
-        for match in matches2:
-            file_path = match.group(1).strip()
-            code = match.group(2)
+        # Sanitize the file path (allow forward slashes)
+        if any(c in file_path for c in forbidden_chars):
+            print(f"Invalid characters found in file path: {file_path}. Skipping this file.")
+            continue
 
-            # Sanitize the file path
-            file_path = file_path.replace('\n', '').replace('\r', '').strip()
-
-            # Validate the file path (allow forward slashes)
-            if any(c in file_path for c in r'<>:"\\|?*'):
-                print(f"Invalid characters found in file path: {file_path}. Skipping this file.")
-                continue
-
-            files[file_path] = code
+        files[file_path] = code
 
     if not files:
         print("No valid code files found in the agent's response.")
 
     return files, app_name
 
-def create_unique_folder(prompt):
-    # Create a hash of the prompt
-    folder_name = hashlib.md5(prompt.encode('utf-8')).hexdigest()
+
+def create_unique_folder(folder_name):
+    if folder_name is None:
+        folder_name='NewApp'
     # Create the folder if it doesn't exist
     if not os.path.exists(folder_name):
         os.makedirs(folder_name)
