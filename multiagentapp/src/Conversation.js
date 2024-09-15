@@ -42,24 +42,23 @@ function Conversation({ messages }) {
       {messages.map((message, index) => {
         const isAgent = message.type === 'agent';
         const isSystem = message.type === 'system';
-
-        // Check for code blocks
-        const codeBlockPattern = /```[\s\S]*?```/g;
-        const hasCodeBlock = codeBlockPattern.test(message.content);
+        const isError = message.content.startsWith("Error:");
 
         return (
           <div
             key={index}
-            className={`message ${isAgent ? 'agent' : isSystem ? 'system' : 'user'}`}
+            className={`message ${
+              isAgent ? 'agent' : isSystem ? 'system' : isError ? 'error' : 'user'
+            }`}
           >
             {isAgent && <div className="agent-name">{message.agent}</div>}
-            <div className="message-content">
-              {hasCodeBlock ? (
-                renderContentWithCodeBlocks(message.content)
-              ) : (
-                <span style={{ whiteSpace: 'pre-wrap' }}>{message.content}</span>
-              )}
-            </div>
+            {isError ? (
+              <div className="error-message">{message.content}</div>
+            ) : (
+              <div className="message-content">
+                {renderContentWithCodeBlocks(message.content)}
+              </div>
+            )}
           </div>
         );
       })}

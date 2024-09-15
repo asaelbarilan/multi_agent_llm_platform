@@ -98,3 +98,19 @@ h1 {
   border-radius: 8px;
   border: 1px solid #444;
 }
+
+/* Model select dropdown */
+.model-select {
+  margin-left: 10px;
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #555;
+  border-radius: 5px;
+  background-color: #2e2e2e;
+  color: #ffffff;
+}
+
+.model-select:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}

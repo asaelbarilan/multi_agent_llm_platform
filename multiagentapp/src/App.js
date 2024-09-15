@@ -25,6 +25,12 @@ function App() {
         agent: agentName,
         content: content,
       };
+    } else if (message.startsWith("Error:")) {
+      // If the message is an error
+      parsedMessage = {
+        type: 'error',
+        content: message,
+      };
     } else {
       // If no colon, treat it as a system message
       parsedMessage = {
