@@ -25,8 +25,14 @@ function App() {
         agent: agentName,
         content: content,
       };
+    } else if (message.startsWith("Error:")) {
+      // Handle error messages
+      parsedMessage = {
+        type: 'error',
+        content: message.substring(6).trim(), // Remove 'Error:' prefix
+      };
     } else {
-      // If no colon, treat it as a system message
+      // If no colon and not an error, treat it as a system message
       parsedMessage = {
         type: 'system',
         content: message,

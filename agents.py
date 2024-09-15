@@ -1,145 +1,277 @@
-import asyncio
+# File: agents.py
 
 import asyncio
 import subprocess
 import sys
+import re
+import json
+import os
+from typing import Optional, List, Mapping, Any
+from pydantic import Field
 
-class ProblemSolvingAgent:
-    def __init__(self, name):
-        self.name = name
+# Corrected imports
+from langchain.prompts import PromptTemplate
+from langchain.llms.base import LLM
+from langchain.tools import BaseTool
 
-    async def process_message(self, message):
-        response = await self.query_ollama(message)
-        return response
+# Custom LLM class for your local model (using Ollama)
+class LocalModelLLM(LLM):
+    model_name: str
+    max_new_tokens: int = Field(default=256)
 
-    async def query_ollama(self, prompt):
-        if sys.platform == "win32":
-            # Windows-specific workaround
-            result = subprocess.run(
-                ["ollama", "run", "llama3"],
-                input=prompt.encode('utf-8'),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            return result.stdout.decode('utf-8')
-        else:
-            # Other platforms
+    def __post_init__(self):
+        super().__post_init__()
+        # Any additional initialization code
+
+    @property
+    def _llm_type(self) -> str:
+        return "custom"
+
+    def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
+        try:
+            if sys.platform == "win32":
+                # Windows-specific workaround
+                result = subprocess.run(
+                    ["ollama", "run", self.model_name],
+                    input=prompt.encode('utf-8'),
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    shell=True  # Add shell=True for Windows
+                )
+                # Debugging: Print stdout and stderr
+                print("OLLAMA STDOUT:", result.stdout.decode('utf-8'))
+                print("OLLAMA STDERR:", result.stderr.decode('utf-8'))
+
+                error_message = result.stderr.decode('utf-8') if result.stderr else ''
+                if result.returncode != 0:
+                    print(f"LLM error: {error_message}")
+                    raise Exception(f"Error in LLM call: {error_message}")
+                return result.stdout.decode('utf-8')
+            else:
+                # For other platforms, use asyncio subprocess
+                loop = asyncio.get_event_loop()
+                result = loop.run_until_complete(self.async_call(prompt))
+                return result
+        except Exception as e:
+            print(f"Exception in _call: {e}")
+            raise
+
+    async def async_call(self, prompt: str) -> str:
+        try:
             process = await asyncio.create_subprocess_exec(
-                "ollama", "run", "llama3",
+                "ollama", "run", self.model_name,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
             stdout, stderr = await process.communicate(input=prompt.encode('utf-8'))
+            # Debugging: Print stdout and stderr
+            print("OLLAMA STDOUT:", stdout.decode('utf-8'))
+            print("OLLAMA STDERR:", stderr.decode('utf-8'))
+
+            error_message = stderr.decode('utf-8') if stderr else ''
+            if process.returncode != 0:
+                print(f"LLM error: {error_message}")
+                raise Exception(f"Error in LLM call: {error_message}")
             return stdout.decode('utf-8')
-#
-# class ProblemSolvingAgent:
-#     def __init__(self, name):
-#         self.name = name
-#
-#     async def process_message(self, message):
-#         # Ask the agent to solve the problem and confirm its resolution
-#         response = await self.query_ollama(message)
-#         return response
-#
-#     async def query_ollama(self, prompt):
-#         process = await asyncio.create_subprocess_exec(
-#             "ollama", "run", "llama3",
-#             stdin=asyncio.subprocess.PIPE,
-#             stdout=asyncio.subprocess.PIPE,
-#             stderr=asyncio.subprocess.PIPE
-#         )
-#
-#         stdout, stderr = await process.communicate(input=prompt.encode('utf-8'))
-#
-#         if stderr:
-#             raise Exception(f"Subprocess error: {stderr.decode('utf-8')}")
-#
-#         return stdout.decode('utf-8')
+        except Exception as e:
+            print(f"Exception in async_call: {e}")
+            raise
 
+    @property
+    def _identifying_params(self) -> Mapping[str, Any]:
+        return {"model_name": self.model_name}
 
+# Code Execution Tool
+class CodeExecutorTool(BaseTool):
+    name = "code_executor"
+    description = "Executes Python code and returns the output."
+
+    def _run(self, code):
+        try:
+            # Define a restricted execution environment
+            restricted_globals = {"__builtins__": {}}
+            restricted_locals = {}
+            exec(code, restricted_globals, restricted_locals)
+            return restricted_locals.get('output', 'No output variable defined.')
+        except Exception as e:
+            return f"Error during execution: {str(e)}"
+
+    async def _arun(self, code):
+        # For async execution, implement if needed
+        return self._run(code)
+
+# Problem Solving Agent
+class ProblemSolvingAgent:
+    def __init__(self, name, role, task, llm, retriever=None):
+        self.name = name
+        self.role = role
+        self.task = task
+        self.llm = llm
+        self.retriever = retriever
+        self.tools = [CodeExecutorTool()]
+
+    def process(self, context):
+        # Retrieve relevant documents if RAG is enabled
+        retrieved_info = ""
+        if self.retriever:
+            docs = self.retriever.get_relevant_documents(self.task)
+            retrieved_info = "\n".join([doc.page_content for doc in docs])
+
+        prompt_template = PromptTemplate(
+            input_variables=["role", "task", "context", "retrieved_info"],
+            template="""
+Role: {role}
+Task: {task}
+Context: {context}
+Retrieved Information: {retrieved_info}
+
+As {role}, think through the task step-by-step and provide your reasoning before giving the final output.
+
+Your response should include:
+- Your reasoning process.
+- The final output or answer.
+
+If you write code, enclose it within triple backticks and specify the language, like ```python
+code_here
+```.
+"""
+        )
+        chain = prompt_template | self.llm
+        try:
+            output = chain.invoke({
+                "role": self.role,
+                "task": self.task,
+                "context": context,
+                "retrieved_info": retrieved_info
+            })
+            print(f"Agent {self.name} Output:\n{output}")
+        except Exception as e:
+            print(f"Error invoking chain for agent {self.name}: {e}")
+            raise
+
+        # Check for code blocks and execute them
+        code_blocks = re.findall(r'```python\n(.*?)\n```', output, re.DOTALL)
+        execution_results = ""
+        for code in code_blocks:
+            result = self.tools[0].run(code)
+            execution_results += f"\nExecution Result:\n{result}"
+
+        return output + execution_results
+
+# Orchestrator Agent
+class OrchestratorAgent:
+    def __init__(self, llm):
+        self.llm = llm
+        self.agent_list = []
+
+    def define_purpose(self, purpose):
+        # Generate a plan and create agents accordingly
+        plan_prompt = PromptTemplate(
+            input_variables=["purpose"],
+            template="""
+You are an AI orchestrator. The purpose is: {purpose}
+
+1. Break down the purpose into tasks.
+2. Decide which agents are needed to accomplish these tasks.
+3. For each agent, define its name, role, and responsibilities.
+
+Provide the plan strictly as a JSON array with no additional text or explanations. The JSON should follow this exact format:
+
+[
+  {{
+    "agent_name": "Agent1",
+    "role": "Role description",
+    "task": "Task description"
+  }},
+  ...
+]
+"""
+        )
+        chain = plan_prompt | self.llm
+        try:
+            plan = chain.invoke({"purpose": purpose})
+            print(f"Generated Plan JSON: {plan}")  # Debugging statement
+        except Exception as e:
+            print(f"Error invoking plan chain: {e}")
+            raise
+        return plan
+
+    def create_agents(self, plan_json):
+        try:
+            # Trim any leading/trailing whitespace
+            trimmed_plan = plan_json.strip()
+
+            # Validate that the JSON starts with '[' and ends with ']'
+            if not trimmed_plan.startswith('[') or not trimmed_plan.endswith(']'):
+                print("Plan JSON does not start with '[' or end with ']'")
+                raise Exception("Invalid JSON plan")
+
+            plan = json.loads(trimmed_plan)
+            print(f"Parsed Plan: {plan}")  # Debugging statement
+        except json.JSONDecodeError as e:
+            print(f"JSONDecodeError: {e}")
+            print(f"Received Plan JSON: {plan_json}")
+            raise Exception("Invalid JSON plan")
+        except Exception as e:
+            print(f"Exception in create_agents: {e}")
+            raise
+
+        for agent_info in plan:
+            try:
+                agent = ProblemSolvingAgent(
+                    name=agent_info["agent_name"],
+                    role=agent_info["role"],
+                    task=agent_info["task"],
+                    llm=self.llm
+                )
+                self.agent_list.append(agent)
+                print(f"Created Agent: {agent.name}")  # Debugging statement
+            except KeyError as ke:
+                print(f"Missing key in agent_info: {ke}")
+                continue
+            except Exception as e:
+                print(f"Error creating agent {agent_info.get('agent_name', 'Unknown')}: {e}")
+                continue
+
+# Environment
 class Environment:
     def __init__(self):
-        self.agents = []
         self.conversation = []
         self.solved = False
 
-    def add_agent(self, agent):
-        self.agents.append(agent)
+    def run(self, orchestrator, initial_purpose):
+        # Orchestrator defines purpose and creates agents
+        plan_json = orchestrator.define_purpose(initial_purpose)
+        orchestrator.create_agents(plan_json)
 
-    def initiate_conversation(self, prompt):
-        self.conversation.append(f"Initial Prompt: {prompt}")
+        # Main loop
+        context = ""
+        for agent in orchestrator.agent_list:
+            response = agent.process(context)
+            print(f"{agent.name}:\n{response}\n")
+            self.conversation.append(f"{agent.name}:\n{response}")
+            context += f"\n{agent.name}:\n{response}"
 
-    async def run_conversation(self):
-        iteration_count = 0
-        max_iterations = 3  # Prevent infinite loops
-        while not self.solved and iteration_count < max_iterations:
-            iteration_count += 1
-            print(f"--- Iteration {iteration_count} ---")
-            for i, agent in enumerate(self.agents):
-                # Share the entire conversation history with each agent
-                conversation_history = "\n".join(self.conversation)
-                response = await agent.process_message(conversation_history)
-                print(f"{agent.name} response: {response}")
-                self.conversation.append(f"{agent.name}: {response}")
-                yield f"{agent.name}: {response}"
+            # Simple validation to check if task mentions completion
+            if "task completed" in response.lower():
+                self.solved = True
 
-                if self.validate_solution(response):
-                    self.solved = await self.verify_solution_with_agents(response)
-                    if self.solved:
-                        yield "Solution verified, stopping conversation."
-                        return
-            if iteration_count >= max_iterations:
-                print("Max iterations reached, stopping conversation.")
-                break
-        if not self.solved:
-            print("Conversation ended without a verified solution.")
+        if self.solved:
+            print("All tasks completed successfully.")
+        else:
+            print("Tasks could not be completed.")
 
-    def validate_solution(self, response):
-        # Check if the response contextually solves the problem by asking if it's solved
-        if "yes problem is solved" in response.lower() or "we can't solve this" in response.lower():
-            print("Validation check: Solved")
-            return True
-        print("Validation check: Not Solved")
-        return False
+    def get_conversation(self):
+        return self.conversation
 
-    async def verify_solution_with_agents(self, solution):
-        # Ask all agents if they agree with the solution
-        for agent in self.agents:
-            verification_prompt = f"The proposed solution is: {solution}\nDo you agree with this solution? If so, say 'yes problem is solved' and explain why. If you can't solve the problem, say 'we can't solve this'. If not, explain why not."
-            verification_response = await agent.process_message(verification_prompt)
-            print(f"{agent.name} verification response: {verification_response}")
-            if "no" in verification_response.lower():
-                print(f"{agent.name} does not agree with the solution.")
-                return False
-        return True
+# Initialize agents
+def initialize_agents(llm):
+    orchestrator = OrchestratorAgent(llm=llm)
+    return orchestrator
 
-
-def initialize_agents():
-    agent1 = ProblemSolvingAgent("Agent1")
-    agent2 = ProblemSolvingAgent("Agent2")
-    return [agent1, agent2]
-
-
-async def orchestrate_problem_solving(agents, prompt):
+# Function to orchestrate problem solving
+def orchestrate_problem_solving(orchestrator, prompt):
     env = Environment()
-    for agent in agents:
-        env.add_agent(agent)
-
-    env.initiate_conversation(prompt)
-    async for message in env.run_conversation():
-        yield message
-
-
-# Usage example
-if __name__ == "__main__":
-    agents = initialize_agents()
-    prompt = "Solve 1+1"
-
-
-    async def main():
-        async for message in orchestrate_problem_solving(agents, prompt):
-            print(message)
-
-
-    asyncio.run(main())
+    env.run(orchestrator, prompt)
+    return env.get_conversation()

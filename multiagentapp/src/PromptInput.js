@@ -35,9 +35,9 @@ function PromptInput({ onNewMessage }) {
 
       // Check for completion messages to close the EventSource
       if (
-        event.data.includes('Solution verified, stopping conversation.') ||
-        event.data.includes('Conversation ended without a verified solution.') ||
-        event.data.includes('Max iterations reached, stopping conversation.')
+        event.data.includes('All tasks completed successfully.') ||
+        event.data.includes('Tasks could not be completed.') ||
+        event.data.startsWith("Error:")
       ) {
         newEventSource.close();
         setLoading(false);
