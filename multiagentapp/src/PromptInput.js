@@ -73,3 +73,4 @@ function PromptInput({ onNewMessage }) {
 }
 
 export default PromptInput;
+

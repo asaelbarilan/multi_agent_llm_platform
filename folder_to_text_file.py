@@ -216,7 +216,7 @@ if __name__ == "__main__":
     base_path="C:/Users/Asael/PycharmProjects/multi_agent_llm_platform"
     file_list=\
         [base_path+'/main.py',
-         base_path + '/agents.py',
+         base_path + '/agents_2.py',
          base_path + '/multiagentapp/src/App.js',
          base_path + '/multiagentapp/src/PromptInput.js',
          base_path + '/multiagentapp/src/Conversation.js',
