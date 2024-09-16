@@ -1,7 +1,6 @@
+# agents/prompts.py
 
-
-code_example=""""
-
+code_example = """
 **Example Format:**
 
 # Application Name: simple_calculator_app
@@ -63,20 +62,20 @@ werkzeug==2.0.3
 {triple_backtick}
 
 Please provide only the application name and code files in this exact format.
-
 """
 
-
-solver_main_prompt=""""
+solver_main_prompt = """
 As the Solver, please provide the code solution to the problem.
 
 **Important Instructions:**
 
+- Use the application name: `{app_name}` throughout your code and file structures.
+- Do not change the application name in subsequent responses.
+- Use this name consistently in your code and file structures.
 - Use Chain-of-Thought (CoT) reasoning to understand and solve the problem.
 - If you encounter an error or issue, attempt to solve it. If it doesn't work, try alternative methods.
 - Ensure you fully understand the problem by testing your solutions. If the problem persists after a solution attempt, it indicates a misunderstanding.
-- Provide an application name in the format `# Application Name: your_app_name`.
-- Use this name consistently in your code and file structures.
+- If there is an error in code packages try to upgrade the packages
 - Provide each code file separately.
 - For each file, start with exactly `# File: path/to/filename.ext` or `**File: path/to/filename.ext**` (without any additional text).
 - Follow the filename with the code in a code block.
@@ -85,21 +84,38 @@ As the Solver, please provide the code solution to the problem.
 - **Do not provide any text outside of the specified format.**
 """
 
-
-reviewer_main_prompt="""As the Reviewer, please evaluate the Solver's solution based on the execution results and determine if the problem is solved.
+reviewer_main_prompt = """
+As the Reviewer, please evaluate the Solver's solution and determine if the code is ready to be executed.
 
 **Important Instructions:**
 
-- If there are any errors in the execution feedback, consider the problem not solved.
-- Provide specific feedback on what needs to be fixed.
-- Do not declare the problem solved if there are any errors or issues in the execution.
+- Carefully review all code files for completeness and correctness.
+- Ensure that all necessary files are included.
+- Do not execute the code; base your evaluation on code review only.
+- If the code is ready, respond with "The problem is solved."
+- If not, provide specific feedback on what needs to be fixed.
+"""
 
-Please provide your response in the following format:
+reviewer_refine_prompt = """
+As the Solver, please refine your solution based on the Reviewer's feedback.
 
-- Start with "The problem is solved." or "The problem is not solved."
-- If not solved, provide specific feedback. """
+Please provide the updated application name and code files in the same format as before.
+"""
 
+execution_refinement_prompt = """
+As the Solver, please refine your solution based on the execution feedback.
 
-reviewer_refine_prompt=""" As the Solver, please refine your solution based on the Reviewer's feedback.
+Please provide the updated application name and code files in the same format as before.
+"""
 
-    Please provide the updated application name and code files in the same format as before."""
+app_name_prompt = """
+    Based on the following problem description, suggest a concise and meaningful application name.
+
+    Problem Description:
+    '{problem_description}'
+
+    **Important Instructions:**
+    - Provide only the application name in the exact format: `# Application Name: your_app_name`
+    - The app name should be a single word without spaces or special characters.
+    - Do not include any additional text.
+    """
