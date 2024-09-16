@@ -79,6 +79,7 @@ As the Solver, please provide the code solution to the problem.
 - Provide each code file separately.
 - For each file, start with exactly `# File: path/to/filename.ext` or `**File: path/to/filename.ext**` (without any additional text).
 - Follow the filename with the code in a code block.
+- **Do not specify exact version numbers in `requirements.txt` unless it's critical.**
 - Include all necessary files, including JS files, CSS files, templates, etc.
 - Do not include any additional text, explanations, or instructions.
 - **Do not provide any text outside of the specified format.**
@@ -92,8 +93,10 @@ As the Reviewer, please evaluate the Solver's solution and determine if the code
 - Carefully review all code files for completeness and correctness.
 - Ensure that all necessary files are included.
 - Do not execute the code; base your evaluation on code review only.
+- If there are big improvements to make the code is not ready to execute.
+- the code is ready when it has all necessary files to execute, it has to have requirement file, front-end back-end files etc.
 - If the code is ready, respond with "The problem is solved."
-- If not, provide specific feedback on what needs to be fixed.
+- If not, provide specific feedback on any issues, improvements, or best practices.
 """
 
 reviewer_refine_prompt = """

@@ -6,22 +6,16 @@ import re
 def extract_application_name(my_string):
     """
     Extracts the application name from a given string in various formats.
-
-    Args:
-        my_string (str): The input string containing the application name.
-
-    Returns:
-        str or None: The extracted application name if found, else None.
     """
     # Updated regex pattern to handle different formats
-    pattern = r'^(?:\#|\*\*)Application Name:\**\s*([A-Za-z0-9_]+)'
+    pattern = r'^\s*(?:#|\*\*)\s*(?:Application Name:\s*)?([A-Za-z0-9_ ]+)'
 
-    # Use re.MULTILINE to handle strings with multiple lines
-    match = re.search(pattern, my_string, re.MULTILINE)
+    match = re.search(pattern, my_string, re.MULTILINE | re.IGNORECASE)
     if match:
-        return match.group(1)
+        return match.group(1).strip()
     else:
         return None
+
 
 def parse_files_from_response(response):
     files = {}

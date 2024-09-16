@@ -281,6 +281,6 @@ Execution Feedback:
 
     def check_if_ready(self, response):
         # Check if the Reviewer agrees that the code is ready
-        if response.lower().startswith("the problem is solved") or response.lower().startswith("the code is ready"):
+        if "the problem is solved" in response.lower() or "the code is ready" in response.lower():
             return True
         return False
