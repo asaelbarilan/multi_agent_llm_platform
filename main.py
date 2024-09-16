@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from agents_3 import initialize_agents, orchestrate_problem_solving
+from agents import initialize_agents, orchestrate_problem_solving
 import asyncio
 
 
