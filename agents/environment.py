@@ -6,6 +6,7 @@ import re
 import subprocess
 from .utils import parse_files_from_response, create_unique_folder,extract_application_name
 from .prompts import *
+import json
 
 class Environment:
     def __init__(self):
@@ -54,7 +55,6 @@ class Environment:
             print("Failed to extract application name from the response. Using default name.")
             self.app_name = "default_app_name"
 
-
     async def collaboration_phase(self):
         # Set the application name once before starting the iterations
         await self.set_application_name()
@@ -75,6 +75,7 @@ class Environment:
 
             # Save code to files
             folder_name = self.save_code(response1)
+            self.folder_name = folder_name  # Save folder name for execution phase
 
             # Reviewer evaluates solution
             response2 = await self.reviewer_evaluate_solution(conversation_history, response1)
@@ -157,12 +158,9 @@ class Environment:
 
     async def solver_provide_solution(self, conversation_history):
         agent1 = self.agents[0]
-        triple_backtick = "```"
         solver_prompt = f"""{conversation_history}
-        {solver_main_prompt.format(app_name=self.app_name)}
-        {code_example}
-        """
-
+    {solver_main_prompt.format(app_name=self.app_name)}
+    """
         response = await agent1.process_message(solver_prompt)
         print(f"{agent1.name} response:\n{response}")
         self.conversation.append(f"{agent1.name}: {response}")
@@ -171,9 +169,9 @@ class Environment:
     async def reviewer_evaluate_solution(self, conversation_history, response1):
         agent2 = self.agents[1]
         review_prompt = f"""{conversation_history}
-{self.agents[0].name}: {response1}
-{reviewer_main_prompt}
-"""
+    {self.agents[0].name}: {response1}
+    {reviewer_main_prompt.format(app_name=self.app_name)}
+    """
         response = await agent2.process_message(review_prompt)
         print(f"{agent2.name} response:\n{response}")
         self.conversation.append(f"{agent2.name}: {response}")
@@ -181,10 +179,36 @@ class Environment:
 
     async def solver_refine_solution(self, conversation_history, response2):
         agent1 = self.agents[0]
+        # Extract the feedback from the Reviewer
+        try:
+            json_match = re.search(r'\{[\s\S]*\}', response2)
+            if json_match:
+                json_content = json_match.group(0)
+                data = json.loads(json_content)
+                reviewer_feedback = data.get("feedback", "")
+            else:
+                reviewer_feedback = ""
+        except json.JSONDecodeError:
+            reviewer_feedback = ""
+
+        # Prepare the prompt for the Solver to refine the solution
         refine_prompt = f"""{conversation_history}
-{self.agents[1].name}: {response2}
-{reviewer_refine_prompt}
-"""
+    {self.agents[1].name}: {response2}
+
+    As the Solver, please refine your solution based on the Reviewer's feedback.
+
+    **Reviewer's Feedback:**
+
+    "{reviewer_feedback}"
+
+    **Important Instructions:**
+
+    - Address all the feedback provided by the Reviewer.
+    - Ensure that you include all necessary files and correct any issues mentioned.
+    - Provide your updated response in the same JSON format as before.
+    - **Do not include any additional text or explanations outside the JSON structure.**
+    - Ensure that the JSON is valid and properly formatted.
+    """
         response = await agent1.process_message(refine_prompt)
         print(f"{agent1.name} refined response:\n{response}")
         self.conversation.append(f"{agent1.name}: {response}")
@@ -193,10 +217,10 @@ class Environment:
     async def solver_refine_execution(self, conversation_history, execution_feedback):
         agent1 = self.agents[0]
         refine_prompt = f"""{conversation_history}
-Execution Feedback:
-{execution_feedback}
-{execution_refinement_prompt}
-"""
+    Execution Feedback:
+    {execution_feedback}
+    {execution_refinement_prompt}
+    """
         response = await agent1.process_message(refine_prompt)
         print(f"{agent1.name} refined response:\n{response}")
         self.conversation.append(f"{agent1.name}: {response}")
@@ -209,20 +233,17 @@ Execution Feedback:
 
     def save_code(self, response, folder_name=None):
         files, app_name = parse_files_from_response(response)
-        if self.app_name == "default_app_name":
-            if app_name:
-                self.app_name = app_name  # Set the app name only if not already set
-            else:
-                print("Application name not found in the response. Using default name.")
-        else:
-            # Ignore app_name from the response to keep it constant
-            app_name = self.app_name
 
+        # Set self.app_name only if it hasn't been set yet
+        if app_name and self.app_name == "default_app_name":
+            self.app_name = app_name
+
+        # Use self.app_name to create the folder
         if folder_name is None:
             folder_name = create_unique_folder(self.app_name)
+
         self.save_code_to_files(files, folder_name)
         return folder_name
-
     def save_code_to_files(self, files, folder_name):
         if files:
             for file_path, code in files.items():
@@ -280,7 +301,23 @@ Execution Feedback:
             dockerfile.write(dockerfile_content)
 
     def check_if_ready(self, response):
-        # Check if the Reviewer agrees that the code is ready
-        if "the problem is solved" in response.lower() or "the code is ready" in response.lower():
-            return True
-        return False
+        try:
+            # Extract JSON content
+            json_match = re.search(r'\{[\s\S]*\}', response)
+            if json_match:
+                json_content = json_match.group(0)
+                data = json.loads(json_content)
+                status = data.get("status", "").strip().lower()
+                if status == "the problem is solved.":
+                    return True
+                else:
+                    # You might want to store the feedback for the Solver
+                    self.reviewer_feedback = data.get("feedback", "")
+                    return False
+            else:
+                print("No valid JSON content found in the Reviewer's response.")
+                return False
+        except json.JSONDecodeError as e:
+            print(f"JSON parsing error in Reviewer's response: {e}")
+            return False
+

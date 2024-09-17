@@ -2,6 +2,7 @@
 
 import os
 import re
+import json
 
 def extract_application_name(my_string):
     """
@@ -18,47 +19,43 @@ def extract_application_name(my_string):
 
 
 def parse_files_from_response(response):
-    files = {}
-    app_name = extract_application_name(response)  # Use the updated extraction function
+    # Extract JSON content from the response
+    try:
+        # Attempt to find the JSON object in the response
+        json_match = re.search(r'(\{.*\})', response, re.DOTALL)
+        if json_match:
+            json_content = json_match.group(1)
 
-    # Define forbidden characters excluding '/'
-    forbidden_chars = r'<>:"\\|?*'
+            # Attempt to parse the JSON content
+            data = json.loads(json_content)
+            app_name = data.get("application_name", None)
+            files = {file["path"]: file["content"] for file in data.get("files", [])}
+            return files, app_name
+        else:
+            print("No JSON content found in the agent's response.")
+            return {}, None
+    except json.JSONDecodeError as e:
+        print(f"JSON parsing error: {e}")
 
-    # Patterns to match the expected file format with '# File: filename' or '**File: filename**'
-    pattern1 = r'# File:\s*(.*?)\s*\n```(?:\w+)?\n([\s\S]*?)\n```'
-    pattern2 = r'\*\*File:\s*(.*?)\*\*\n```(?:\w+)?\n([\s\S]*?)\n```'
+        # Attempt to fix common issues
+        try:
+            # Remove triple quotes
+            json_content = response.replace('"""', '"')
 
-    # Find all matches for pattern1
-    matches1 = re.finditer(pattern1, response, re.DOTALL)
-    for match in matches1:
-        file_path = match.group(1).strip()
-        code = match.group(2).strip()
+            # Escape unescaped double quotes within strings
+            json_content = re.sub(r'(?<!\\)"', r'\\"', json_content)
 
-        # Sanitize the file path (allow forward slashes)
-        if any(c in file_path for c in forbidden_chars):
-            print(f"Invalid characters found in file path: {file_path}. Skipping this file.")
-            continue
+            # Replace single quotes with double quotes
+            json_content = json_content.replace("'", '"')
 
-        files[file_path] = code
-
-    # Find all matches for pattern2
-    matches2 = re.finditer(pattern2, response, re.DOTALL)
-    for match in matches2:
-        file_path = match.group(1).strip()
-        code = match.group(2).strip()
-
-        # Sanitize the file path (allow forward slashes)
-        if any(c in file_path for c in forbidden_chars):
-            print(f"Invalid characters found in file path: {file_path}. Skipping this file.")
-            continue
-
-        files[file_path] = code
-
-    if not files:
-        print("No valid code files found in the agent's response.")
-
-    return files, app_name
-
+            # Parse the cleaned JSON content
+            data = json.loads(json_content)
+            app_name = data.get("application_name", None)
+            files = {file["path"]: file["content"] for file in data.get("files", [])}
+            return files, app_name
+        except json.JSONDecodeError as e2:
+            print(f"JSON parsing error after attempting to fix: {e2}")
+            return {}, None
 
 def create_unique_folder(folder_name):
     if folder_name is None:
