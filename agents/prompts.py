@@ -21,11 +21,12 @@ As the Solver, please provide the code solution to the problem.
 **Important Notes:**
 
 - **All strings in the JSON must be enclosed in double quotes (`"`).**
-- **Do not use triple quotes (three consecutive single or double quotes) in your JSON.**
+- **Do not use triple quotes (three consecutive single or double quotes ) in your JSON.**
 - **Escape all double quotes inside strings with a backslash (`\\`).**
 - **Represent newlines in strings using `\\n`.**
 - **Do not include any introductory text, explanations, or comments outside the JSON structure.**
 - **Ensure that the JSON is valid and properly formatted.**
+- **Do not use single quotes (`'`) in JSON.**
 
 **JSON Format Example:**
 

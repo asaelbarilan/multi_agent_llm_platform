@@ -308,7 +308,7 @@ class Environment:
                 json_content = json_match.group(0)
                 data = json.loads(json_content)
                 status = data.get("status", "").strip().lower()
-                if status == "the problem is solved.":
+                if "not solved" not in status:
                     return True
                 else:
                     # You might want to store the feedback for the Solver

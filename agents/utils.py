@@ -17,14 +17,13 @@ def extract_application_name(my_string):
     else:
         return None
 
-
 def parse_files_from_response(response):
-    # Extract JSON content from the response
     try:
         # Attempt to find the JSON object in the response
         json_match = re.search(r'(\{.*\})', response, re.DOTALL)
         if json_match:
             json_content = json_match.group(1)
+            print("Extracted JSON content:", json_content)  # Debugging line
 
             # Attempt to parse the JSON content
             data = json.loads(json_content)
@@ -41,12 +40,15 @@ def parse_files_from_response(response):
         try:
             # Remove triple quotes
             json_content = response.replace('"""', '"')
+            print("Removed triple quotes from response.")  # Debugging line
 
             # Escape unescaped double quotes within strings
             json_content = re.sub(r'(?<!\\)"', r'\\"', json_content)
+            print("Escaped double quotes.")  # Debugging line
 
             # Replace single quotes with double quotes
             json_content = json_content.replace("'", '"')
+            print("Replaced single quotes with double quotes.")  # Debugging line
 
             # Parse the cleaned JSON content
             data = json.loads(json_content)
