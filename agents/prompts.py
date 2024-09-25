@@ -132,3 +132,37 @@ app_name_prompt = """
     - The app name should be a single word without spaces or special characters.
     - Do not include any additional text.
     """
+
+
+solver_correction_prompt = """
+Your previous response was invalid: {error_message}
+Please provide your response in the correct JSON format with all required fields.
+
+**Important Instructions:**
+- Do not include any text outside the JSON.
+- Ensure all required fields are present.
+- The required fields are: {required_fields}.
+- Review the instructions and format carefully.
+
+Here is the prompt again for your reference:
+
+{original_prompt}
+"""
+
+reviewer_correction_prompt = """
+Your previous response was invalid: {error_message}
+Please provide your response in the correct JSON format with all required fields.
+
+**Important Instructions:**
+- Do not include any text outside the JSON.
+- Ensure all required fields are present.
+- The required field is: 'status'.
+- If the code is not ready, include the 'feedback' field.
+- Review the instructions and format carefully.
+
+Here is the prompt again for your reference:
+
+{original_prompt}
+"""
+
+

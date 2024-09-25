@@ -67,3 +67,30 @@ def create_unique_folder(folder_name):
         os.makedirs(folder_name)
     return folder_name
 
+# agents/utils.py
+
+import json
+import re
+
+# Existing imports and functions...
+
+def validate_agent_response(response, required_fields):
+    """
+    Validates the agent's response to ensure it is valid JSON and contains required fields.
+    Returns a tuple (is_valid, data_or_error_message).
+    """
+    try:
+        # Attempt to find the JSON object in the response
+        json_match = re.search(r'(\{.*\})', response, re.DOTALL)
+        if json_match:
+            json_content = json_match.group(1)
+            data = json.loads(json_content)
+            # Check for required fields
+            missing_fields = [field for field in required_fields if field not in data]
+            if missing_fields:
+                return False, f"Missing required fields: {', '.join(missing_fields)}"
+            return True, data
+        else:
+            return False, "No valid JSON content found in the response."
+    except json.JSONDecodeError as e:
+        return False, f"Invalid JSON format: {e}"

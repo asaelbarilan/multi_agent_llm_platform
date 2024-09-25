@@ -5,6 +5,8 @@ import os
 import re
 import subprocess
 from .utils import parse_files_from_response, create_unique_folder,extract_application_name
+from .utils import validate_agent_response  # Import the validation function
+from .prompts import solver_correction_prompt  # Import the correction prompt
 from .prompts import *
 import json
 
@@ -156,15 +158,49 @@ class Environment:
             yield "Execution successful on first try."
             self.solved = True
 
+
+
+    # In the Environment class...
+
     async def solver_provide_solution(self, conversation_history):
         agent1 = self.agents[0]
         solver_prompt = f"""{conversation_history}
     {solver_main_prompt.format(app_name=self.app_name)}
     """
-        response = await agent1.process_message(solver_prompt)
-        print(f"{agent1.name} response:\n{response}")
-        self.conversation.append(f"{agent1.name}: {response}")
-        return response
+        max_retries = 3
+        retry_count = 0
+
+        while retry_count < max_retries:
+            response = await agent1.process_message(solver_prompt)
+            print(f"{agent1.name} response:\n{response}")
+            self.conversation.append(f"{agent1.name}: {response}")
+
+            # Validate the response
+            is_valid, result = validate_agent_response(response, required_fields=['application_name', 'files'])
+            if is_valid:
+                # Response is valid; return it
+                return response
+            else:
+                # Response is invalid; prompt the agent to correct it
+                error_message = result
+                correction_prompt = solver_correction_prompt.format(
+                    error_message=error_message,
+                    required_fields="'application_name', 'files'",
+                    original_prompt=solver_prompt
+                )
+                retry_count += 1
+                response = await agent1.process_message(correction_prompt)
+                print(f"{agent1.name} corrected response:\n{response}")
+                self.conversation.append(f"{agent1.name} correction attempt {retry_count}: {response}")
+
+        # If maximum retries exceeded
+        print(f"{agent1.name} failed to provide a valid response after {max_retries} attempts.")
+        self.conversation.append(f"{agent1.name} failed to provide a valid response after {max_retries} attempts.")
+        return None
+
+    from .prompts import reviewer_correction_prompt  # Import the correction prompt
+
+    # In the Environment class...
 
     async def reviewer_evaluate_solution(self, conversation_history, response1):
         agent2 = self.agents[1]
@@ -172,10 +208,76 @@ class Environment:
     {self.agents[0].name}: {response1}
     {reviewer_main_prompt.format(app_name=self.app_name)}
     """
-        response = await agent2.process_message(review_prompt)
-        print(f"{agent2.name} response:\n{response}")
-        self.conversation.append(f"{agent2.name}: {response}")
-        return response
+        max_retries = 3
+        retry_count = 0
+
+        while retry_count < max_retries:
+            response = await agent2.process_message(review_prompt)
+            print(f"{agent2.name} response:\n{response}")
+            self.conversation.append(f"{agent2.name}: {response}")
+
+            # Validate the response
+            is_valid, result = validate_agent_response(response, required_fields=['status'])
+            if is_valid:
+                # Response is valid; return it
+                return response
+            else:
+                # Response is invalid; prompt the agent to correct it
+                error_message = result
+                correction_prompt = reviewer_correction_prompt.format(
+                    error_message=error_message,
+                    original_prompt=review_prompt
+                )
+                retry_count += 1
+                response = await agent2.process_message(correction_prompt)
+                print(f"{agent2.name} corrected response:\n{response}")
+                self.conversation.append(f"{agent2.name} correction attempt {retry_count}: {response}")
+
+        # If maximum retries exceeded
+        print(f"{agent2.name} failed to provide a valid response after {max_retries} attempts.")
+        self.conversation.append(f"{agent2.name} failed to provide a valid response after {max_retries} attempts.")
+        return None
+
+    # async def solver_refine_solution(self, conversation_history, response2):
+    #     agent1 = self.agents[0]
+    #     # Extract the feedback from the Reviewer
+    #     try:
+    #         json_match = re.search(r'\{[\s\S]*\}', response2)
+    #         if json_match:
+    #             json_content = json_match.group(0)
+    #             data = json.loads(json_content)
+    #             reviewer_feedback = data.get("feedback", "")
+    #         else:
+    #             reviewer_feedback = ""
+    #     except json.JSONDecodeError:
+    #         reviewer_feedback = ""
+    #
+    #     # Prepare the prompt for the Solver to refine the solution
+    #     refine_prompt = f"""{conversation_history}
+    # {self.agents[1].name}: {response2}
+    #
+    # As the Solver, please refine your solution based on the Reviewer's feedback.
+    #
+    # **Reviewer's Feedback:**
+    #
+    # "{reviewer_feedback}"
+    #
+    # **Important Instructions:**
+    #
+    # - Address all the feedback provided by the Reviewer.
+    # - Ensure that you include all necessary files and correct any issues mentioned.
+    # - Provide your updated response in the same JSON format as before.
+    # - **Do not include any additional text or explanations outside the JSON structure.**
+    # - Ensure that the JSON is valid and properly formatted.
+    # """
+    #     response = await agent1.process_message(refine_prompt)
+    #     print(f"{agent1.name} refined response:\n{response}")
+    #     self.conversation.append(f"{agent1.name}: {response}")
+    #     return response
+
+    from .prompts import solver_correction_prompt  # Use the same correction prompt
+
+    # In the Environment class...
 
     async def solver_refine_solution(self, conversation_history, response2):
         agent1 = self.agents[0]
@@ -209,10 +311,38 @@ class Environment:
     - **Do not include any additional text or explanations outside the JSON structure.**
     - Ensure that the JSON is valid and properly formatted.
     """
-        response = await agent1.process_message(refine_prompt)
-        print(f"{agent1.name} refined response:\n{response}")
-        self.conversation.append(f"{agent1.name}: {response}")
-        return response
+
+        max_retries = 3
+        retry_count = 0
+
+        while retry_count < max_retries:
+            response = await agent1.process_message(refine_prompt)
+            print(f"{agent1.name} refined response:\n{response}")
+            self.conversation.append(f"{agent1.name} refined response: {response}")
+
+            # Validate the response
+            is_valid, result = validate_agent_response(response, required_fields=['application_name', 'files'])
+            if is_valid:
+                # Response is valid; return it
+                return response
+            else:
+                # Response is invalid; prompt the agent to correct it
+                error_message = result
+                correction_prompt = solver_correction_prompt.format(
+                    error_message=error_message,
+                    required_fields="'application_name', 'files'",
+                    original_prompt=refine_prompt
+                )
+                retry_count += 1
+                response = await agent1.process_message(correction_prompt)
+                print(f"{agent1.name} corrected refined response:\n{response}")
+                self.conversation.append(f"{agent1.name} correction attempt {retry_count}: {response}")
+
+        # If maximum retries exceeded
+        print(f"{agent1.name} failed to provide a valid refined response after {max_retries} attempts.")
+        self.conversation.append(
+            f"{agent1.name} failed to provide a valid refined response after {max_retries} attempts.")
+        return None
 
     async def solver_refine_execution(self, conversation_history, execution_feedback):
         agent1 = self.agents[0]
